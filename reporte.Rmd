@@ -1,7 +1,7 @@
 ---
 title: "reporte"
 output: html_document
-  css: styles.css
+css: styles.css
 ---
 
 Cargar y valida los datos al inicio del Rmd:
@@ -11,7 +11,7 @@ Cargar y valida los datos al inicio del Rmd:
 library (tidyverse)
 library (vegan) # índices de diversidad y rarefacción
 library (iNEXT) # curvas de rarefacción/extrapolación
-
+library (tibble)
 ```
 
 ```{r}
@@ -25,12 +25,12 @@ glimpse (datos)
 stopifnot (!any (is.na (datos))) # falla si hay NAs
 ```
 
-Sacar el promedio de las réplicas de cada grupo muestrado (script de la clase de estadística multivariada, tema de visualización de los datos paralas caras de Chernoff).
+Sacar el promedio de las réplicas de cada grupo muestrado (script de la clase de estadística multivariada, tema de visualización de los datos para las caras de Chernoff).
 
 ```{r}
 promedios <- datos %>%
-  group_by (group) %>%
-  summarise (across)
+  group_by (grupo) %>%
+  summarise (across (rosa_fuerte:naranja, mean))
 ```
 
 
@@ -39,12 +39,39 @@ promedios <- datos %>%
 Calcula los siguientes indices para cada sitio y presentados en una tabla resumen:
 
 ```{r}
-sp_matrix <- datos %>% column_to_rownames ("datos")
+matriz <- promedios %>%
+  column_to_rownames("grupo")
+```
+
+
+```{r}
+alfa <- data.frame(
+  sitio    = rownames(matriz),
+  riqueza  = specnumber(matriz),
+  shannon  = diversity(matriz, index = "shannon"),
+  simpson  = diversity(matriz, index = "simpson"),
+  inv_simp = diversity(matriz, index = "invsimpson"),
+  pielou   = diversity(matriz, "shannon") / log(specnumber(matriz))
+)
+
+alfa
+```
+
+
+```{r}
+shannon.data <- promedios %>%
+  column_to_rownames ("grupo") %>%
+  diversity ("shannon")
+
+shannon.data
 ```
 
 ### Preguntas
 
-
+a) **P1.** Compara los valores de Shannon y Simpson entre todos los sitios. ¿Por qué puede dar órdenes de ranking distintos? ¿Qué información adicional aporta cada uno?
+b)
+c)
+d)
 
 ### Diversidad beta
 
