@@ -1,5 +1,51 @@
 ---
 title: "reporte"
 output: html_document
+  css: styles.css
 ---
+
+Cargar y valida los datos al inicio del Rmd:
+
+```{r message=FALSE, warning=FALSE}
+
+library (tidyverse)
+library (vegan) # índices de diversidad y rarefacción
+library (iNEXT) # curvas de rarefacción/extrapolación
+
+```
+
+```{r}
+datos <- read.csv ("data/sitios.csv")
+```
+
+```{r}
+glimpse (datos)
+```
+```{r}
+stopifnot (!any (is.na (datos))) # falla si hay NAs
+```
+
+Sacar el promedio de las réplicas de cada grupo muestrado (script de la clase de estadística multivariada, tema de visualización de los datos paralas caras de Chernoff).
+
+```{r}
+promedios <- datos %>%
+  group_by (group) %>%
+  summarise (across)
+```
+
+
+## Diversidad alfa — comparación entre índices
+
+Calcula los siguientes indices para cada sitio y presentados en una tabla resumen:
+
+```{r}
+sp_matrix <- datos %>% column_to_rownames ("datos")
+```
+
+### Preguntas
+
+
+
+### Diversidad beta
+
 
