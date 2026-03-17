@@ -69,10 +69,29 @@ shannon.data
 ### Preguntas
 
 a) **P1.** Compara los valores de Shannon y Simpson entre todos los sitios. ¿Por qué puede dar órdenes de ranking distintos? ¿Qué información adicional aporta cada uno?
-b)
-c)
-d)
 
-### Diversidad beta
+
+
+b) **P2** ¿Qué sitio presenta la mayor equitatividad según Pielou? ¿Podría tener mayor equitatividad pero menor riqueza que otro sitio? Explica con un ejemplo numérico concreto.
+
+
+
+c) **P3** Compara la riqueza observada (S) con el estimado de Chao1. ¿En qué sitio la brecha es mayor? ¿Qué implicación tiene esto para el diseño de un muestreo real?
+
+
+
+d) **P4** Si duplicaras el número de individuos muestreados en el sitio con menor riqueza, ¿esperarías que Chao1 cambiara significativamente? Justifica ecológica y estadísticamente.
+
+## Curvas de rarefacción
+
+Samuel
+
+## Gráficas de rango-abundancia
+
+Majo
+
+## Diversidad beta
+
+Majo
 
 
