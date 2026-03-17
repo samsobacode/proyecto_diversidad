@@ -2,6 +2,7 @@
 title: "reporte"
 output: html_document
 css: styles.css
+bibliography: references.bib
 ---
 
 Cargar y valida los datos al inicio del Rmd:
@@ -12,6 +13,7 @@ library (tidyverse)
 library (vegan) # índices de diversidad y rarefacción
 library (iNEXT) # curvas de rarefacción/extrapolación
 library (tibble)
+
 ```
 
 ```{r}
@@ -31,6 +33,9 @@ Sacar el promedio de las réplicas de cada grupo muestrado (script de la clase d
 promedios <- datos %>%
   group_by (grupo) %>%
   summarise (across (rosa_fuerte:naranja, mean))
+
+promedios
+
 ```
 
 
@@ -41,6 +46,9 @@ Calcula los siguientes indices para cada sitio y presentados en una tabla resume
 ```{r}
 matriz <- promedios %>%
   column_to_rownames("grupo")
+
+matriz
+
 ```
 
 
@@ -74,7 +82,9 @@ a) **P1.** Compara los valores de Shannon y Simpson entre todos los sitios. ¿Po
 
 b) **P2** ¿Qué sitio presenta la mayor equitatividad según Pielou? ¿Podría tener mayor equitatividad pero menor riqueza que otro sitio? Explica con un ejemplo numérico concreto.
 
+Los sitios con mayor equitatividad fueron el b (0.9578) y e (0.9316). También el análisis mostró que el sitio f (riqueza de siete especies) tiene mayor equitatividad a comparación con el sitio d (riqueza de nueve especies).
 
+Las comunidades con mayor riquezas puede generar una disminución de la equitatividad por la presencia de especies dominantes y raras, estas competirán por los recursos [@jost2006].
 
 c) **P3** Compara la riqueza observada (S) con el estimado de Chao1. ¿En qué sitio la brecha es mayor? ¿Qué implicación tiene esto para el diseño de un muestreo real?
 
