@@ -251,6 +251,29 @@ if (window.hljs) {
 
 
 
+<style type="text/css">
+
+div.csl-bib-body { }
+div.csl-entry {
+clear: both;
+margin-bottom: 0em;
+}
+.hanging div.csl-entry {
+margin-left:2em;
+text-indent:-2em;
+}
+div.csl-left-margin {
+min-width:2em;
+float:left;
+}
+div.csl-right-inline {
+margin-left:2em;
+padding-left:1em;
+}
+div.csl-indent {
+margin-left: 2em;
+}
+</style>
 
 <style type="text/css">p {text-align: justify;}</style>
 
@@ -384,13 +407,45 @@ la clase de estadística multivariada, tema de visualización de los datos
 para las caras de Chernoff).</p>
 <pre class="r"><code>promedios &lt;- datos %&gt;%
   group_by (grupo) %&gt;%
-  summarise (across (rosa_fuerte:naranja, mean))</code></pre>
+  summarise (across (rosa_fuerte:naranja, mean))
+
+promedios</code></pre>
+<pre><code>## # A tibble: 7 × 13
+##   grupo rosa_fuerte rosa_claro rosa_transparente morado azul_fuerte azul_claro
+##   &lt;chr&gt;       &lt;dbl&gt;      &lt;dbl&gt;             &lt;dbl&gt;  &lt;dbl&gt;       &lt;dbl&gt;      &lt;dbl&gt;
+## 1 a            0          0                 0     15.5         0          0   
+## 2 b            2.5        2.25              2.25   2.75        2          1.75
+## 3 c            4.25       0                 0.5    5           3.75       1.75
+## 4 d            1.75       1.25              0.5    0           1.5        8   
+## 5 e            0.75       0.5               0.75   1.25        3.75       0.75
+## 6 f            1          4.33              3.67   5.67        2.67       0   
+## 7 g            1.25       0.25              1      0.25        4.5        1.75
+## # ℹ 6 more variables: azul_transparente &lt;dbl&gt;, amarillo &lt;dbl&gt;, rojo &lt;dbl&gt;,
+## #   verde_claro &lt;dbl&gt;, verde_transparente &lt;dbl&gt;, naranja &lt;dbl&gt;</code></pre>
 <div id="diversidad-alfa-comparación-entre-índices" class="section level2">
 <h2>Diversidad alfa — comparación entre índices</h2>
 <p>Calcula los siguientes indices para cada sitio y presentados en una
 tabla resumen:</p>
 <pre class="r"><code>matriz &lt;- promedios %&gt;%
-  column_to_rownames(&quot;grupo&quot;)</code></pre>
+  column_to_rownames(&quot;grupo&quot;)
+
+matriz</code></pre>
+<pre><code>##   rosa_fuerte rosa_claro rosa_transparente    morado azul_fuerte azul_claro
+## a        0.00   0.000000          0.000000 15.500000    0.000000       0.00
+## b        2.50   2.250000          2.250000  2.750000    2.000000       1.75
+## c        4.25   0.000000          0.500000  5.000000    3.750000       1.75
+## d        1.75   1.250000          0.500000  0.000000    1.500000       8.00
+## e        0.75   0.500000          0.750000  1.250000    3.750000       0.75
+## f        1.00   4.333333          3.666667  5.666667    2.666667       0.00
+## g        1.25   0.250000          1.000000  0.250000    4.500000       1.75
+##   azul_transparente  amarillo rojo verde_claro verde_transparente  naranja
+## a              0.00 0.0000000 0.00        0.00               0.00 0.000000
+## b              1.00 2.2500000 1.75        0.25               1.00 3.250000
+## c              1.75 1.0000000 3.75        1.50               0.75 2.500000
+## d              4.75 0.0000000 0.75        0.75               0.50 0.000000
+## e              1.00 1.0000000 1.75        1.00               2.00 2.250000
+## f              0.00 0.3333333 0.00        0.00               0.00 3.666667
+## g              1.75 1.0000000 0.25        3.25               5.75 0.250000</code></pre>
 <pre class="r"><code>alfa &lt;- data.frame(
   sitio    = rownames(matriz),
   riqueza  = specnumber(matriz),
@@ -425,6 +480,16 @@ entre todos los sitios. ¿Por qué puede dar órdenes de ranking distintos?
 <li><p><strong>P2</strong> ¿Qué sitio presenta la mayor equitatividad
 según Pielou? ¿Podría tener mayor equitatividad pero menor riqueza que
 otro sitio? Explica con un ejemplo numérico concreto.</p></li>
+</ol>
+<p>Los sitios con mayor equitatividad fueron el b (0.9578) y e (0.9316).
+También el análisis mostró que el sitio f (riqueza de siete especies)
+tiene mayor equitatividad a comparación con el sitio d (riqueza de nueve
+especies).</p>
+<p>Las comunidades con mayor riquezas puede generar una disminución de
+la equitatividad por la presencia de especies dominantes y raras, estas
+competirán por los recursos <span class="citation">(Stirling and Wilsey
+2001)</span>..</p>
+<ol start="3" style="list-style-type: lower-alpha">
 <li><p><strong>P3</strong> Compara la riqueza observada (S) con el
 estimado de Chao1. ¿En qué sitio la brecha es mayor? ¿Qué implicación
 tiene esto para el diseño de un muestreo real?</p></li>
@@ -446,6 +511,13 @@ estadísticamente.</p></li>
 <div id="diversidad-beta" class="section level2">
 <h2>Diversidad beta</h2>
 <p>Majo</p>
+<div id="refs" class="references csl-bib-body hanging-indent" entry-spacing="0">
+<div id="ref-stirling2001" class="csl-entry">
+Stirling, Graham, and Brian Wilsey. 2001. <span>“Empirical Relationships
+Between Species Richness, Evenness, and Proportional Diversity.”</span>
+<em>The American Naturalist</em> 158 (3): 286–99. <a href="https://doi.org/10.1086/321317">https://doi.org/10.1086/321317</a>.
+</div>
+</div>
 </div>
 
 

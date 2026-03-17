@@ -84,7 +84,7 @@ b) **P2** ¿Qué sitio presenta la mayor equitatividad según Pielou? ¿Podría 
 
 Los sitios con mayor equitatividad fueron el b (0.9578) y e (0.9316). También el análisis mostró que el sitio f (riqueza de siete especies) tiene mayor equitatividad a comparación con el sitio d (riqueza de nueve especies).
 
-Las comunidades con mayor riquezas puede generar una disminución de la equitatividad por la presencia de especies dominantes y raras, estas competirán por los recursos [@jost2006].
+Las comunidades con mayor riquezas puede generar una disminución de la equitatividad por la presencia de especies dominantes y raras, estas competirán por los recursos [@zhang2012].
 
 c) **P3** Compara la riqueza observada (S) con el estimado de Chao1. ¿En qué sitio la brecha es mayor? ¿Qué implicación tiene esto para el diseño de un muestreo real?
 
