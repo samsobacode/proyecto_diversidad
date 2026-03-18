@@ -53,136 +53,116 @@ matriz
 
 ```
 
+Calcular el índice de Shannon, utilizando una función.
+
 ```{r}
-#' Calcular índice de Shannon (H')
-#'
-#' @param abund Vector numérico de abundancias por especie
-#' @return Valor de H' (≥ 0); máximo = ln(S)
+
 shannon <- function(abund) {
 
-  # Solo especies presentes
-  abund <- abund[abund > 0]
+  abund <- abund [abund > 0] 
 
-  N  <- sum(abund)          # Total de individuos
-  pi <- abund / N           # Proporción de cada especie
-
-  H  <- -sum(pi * log(pi))  # Ecuación de Shannon
-  return(round(H, 4))
+  N  <- sum (abund)         # Suma el total de individuos.
+  pi <- abund / N           # Sacar la abundancia relativa.
+  H  <- -sum(pi * log(pi))  # Indice de Shannon.
+  return (round (H, 4))
 }
+
+shannon2 <- apply (matriz, 1, shannon) # apply recorre las filas (1) de la matriz
+shannon2
 ```
 
+Calcular el índice de Simpson, utilizando una función.
+
 ```{r}
-#' Calcular índice de Simpson (D = 1 - Σpi²)
-#'
-#' @param abund Vector numérico de abundancias por especie
-#' @return Valor de D (0 a 1); cerca de 1 = alta diversidad
+
 simpson <- function(abund) {
 
-  abund <- abund[abund > 0]
+  abund <- abund [abund > 0]
 
-  N  <- sum(abund)
-  pi <- abund / N
-
-  D  <- 1 - sum(pi^2)       # Ecuación de Simpson
-  return(round(D, 4))
+  N  <- sum(abund)          # Suma el total de individuos.
+  pi <- abund / N           # Sacar la abundancia relativa.
+  D  <- 1 - sum (pi^2)      # Sacar la dominancia
+  return (round (D, 4))
 }
+
+simpson2 <- apply (matriz, 1, simpson) # apply recorre las filas (1) de la matriz
+simpson2
 ```
+Calcular la equitatividad de Pielou, utilizando una función.
 
 ```{r}
-#' Calcular equitatividad de Pielou (J')
-#'
-#' @param abund Vector numérico de abundancias por especie
-#' @return J' entre 0 y 1; cerca de 1 = distribución equitativa
+
 pielou <- function(abund) {
 
-  abund <- abund[abund > 0]
-  S     <- length(abund)         # Riqueza observada
-
-  if (S <= 1) return(NA)         # No tiene sentido con 1 sola especie
-
-  H  <- shannon(abund)
-  J  <- H / log(S)               # H' normalizado por el máximo posible
+  abund <- abund [abund > 0]
+  
+  S     <- length (abund)         # Npumero de especies presentes.
+  
+  if (S <= 1) return(NA)         # Al haber una especie, no se calcula. La equidad no existe si hay una especie.
+  
+  H  <- shannon (abund)          # Calcula el indice de Shannon con al función previa.
+  J  <- H / log(S)               # Indice de Pielou.
   return(round(J, 4))
 }
+
+pielou2 <- apply (matriz, 1, pielou) # apply recorre las filas (1) de la matriz
+pielou2
 ```
 
+Los valores calculados, pasarlo a una tabla con las instrucciones generadas anteriormente.
+
 ```{r}
-# ============================================================
-# FUNCIÓN: Tabla de diversidad alfa para múltiples sitios
-# ============================================================
 
-#' Calcular todos los índices alfa para una matriz de sitios
-#'
-#' @param matriz Data frame o matriz (filas = sitios, columnas = especies)
-#' @return Data frame con S, H', D, 1/D y J' por sitio
-tabla_diversidad <- function(matriz) {
+diversidad <- function (matriz) {
 
-  sitios <- rownames(matriz)
+  sitios <- rownames (matriz) # Nombrar los sitios de muestreo
 
-  resultado <- lapply(sitios, function(s) {
-    abund <- as.numeric(matriz[s, ])
+  resultado <- lapply (sitios, function(s) { # Recorre los objetos para aplicar las funciones generadas anteriormente.
+    
+    abund <- as.numeric(matriz [s, ]) # Pasa los datos a formato númerico.
 
-    data.frame(
-      sitio    = s,
-      S        = sum(abund > 0),          # Riqueza observada
-      shannon  = shannon(abund),           # H'
-      simpson  = simpson(abund),           # 1 - Σpi²
-      inv_simp = inv_simpson(abund),       # 1 / Σpi²
-      pielou   = pielou(abund)             # J'
+    data.frame( # Crear un dataframe
+      sitio    = s, 
+      S        = sum (abund > 0), # Calcula la riqueza de las especies.
+      shannon  = shannon(abund),           
+      simpson  = simpson(abund),
+      pielou   = pielou(abund)
     )
   })
 
-  do.call(rbind, resultado)
+  do.call(rbind, resultado) # rbind es para unor filas, do.call aplica el rbind a toda la lista.
 }
+
+diversidad (matriz)
 
 ```
 
+Calcular el índice Chao1 = S + (f1^2) / (2 * f2).
+
 ```{r}
-#' Calcular el estimador de riqueza Chao1
-#'
-#' @param abundancias Vector numérico con abundancias por especie en un sitio
-#' @return Lista con S, f1, f2 y Chao1
-#' @details Chao1 = S + (f1^2) / (2 * f2)
-#'          donde f1 = singletons, f2 = doubletons
-calcular_chao1 <- function(abundancias) {
-  # Filtrar especies presentes (abundancia > 0)
-  presentes <- abundancias[abundancias > 0]
+
+chao1 <- function(abundancias) {
   
-  S   <- length(presentes)                   # Riqueza observada
-  f1  <- sum(presentes == 1)                 # Singletons
-  f2  <- sum(presentes == 2)                 # Doubletons
+  x <- abundancias [abundancias > 0]
   
-  # Si f2 = 0, usar corrección: Chao1 = S + f1*(f1-1)/2
+  S   <- length(x)                   # Riqueza observada
+  f1  <- sum(x == 1)                 # Singletons
+  f2  <- sum(x == 2)                 # Doubletons
+
   chao1 <- if (f2 > 0) {
-    S + (f1^2) / (2 * f2)
-  } else if (f1 > 0) {
+    S + (f1^2) / (2 * f2) # Utiliza la fórmula de Chao1
+  } else if (f1 > 0) {    # Al no haber doubletons, utiliza la fórmula de correción.
     S + f1 * (f1 - 1) / 2
   } else {
-    S  # Sin raras → estimado = observado
+    S  # No hay especies detectadas, entonces es el valor de las riquezas observadas.
   }
   
-  list(S = S, f1 = f1, f2 = f2, chao1 = round(chao1, 2))
+  data.frame (S = S, f1 = f1, f2 = f2, chao1 = round (chao1, 2)) # Devuelve las riquezas observadas (S), el singletons y doubletons, la estimación de riqueza con dos decimales (chao1).
 }
-```
 
 
-```{r}
-alfa <- data.frame(
-  sitio    = rownames(matriz),
-  riqueza  = specnumber(matriz),
-  shannon  = diversity(matriz, index = "shannon"),
-  simpson  = diversity(matriz, index = "simpson"),
-  inv_simp = diversity(matriz, index = "invsimpson"),
-  pielou   = diversity(matriz, "shannon") / log(specnumber(matriz))
-)
-
-alfa
-```
-
-
-```{r}
-# Chao1 requiere conteos crudos (no proporciones)
-alfa$chao1 <- estimateR (sp_matrix) ["S.chao1",]
+chao1_2 <- do.call(rbind, apply(matriz, 1, chao1, simplify = FALSE)) # apply recorre las filas (1) de la matriz, do.call permite aplicar a cada elemento la función y rbind une las filas para hacer la tabla.
+chao1_2
 ```
 
 
