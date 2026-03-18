@@ -1,6 +1,9 @@
 ---
-title: "reporte"
+title: "Proyecto Diversidad"
 output: html_document
+author:
+  - "Maria Jose Rangel Torres"
+  - "Samuel Solís Barrón"
 css: styles.css
 bibliography: references.bib
 ---
@@ -466,3 +469,4 @@ de beta-diversidad esperarías según la teoría del dominio medio (mid-domain e
 
 No, no coinciden con esté patrón ya que en el caso del sitio a s epresenta una caida de diversidad que es muy tajante y por ende una composición muy simple que rompe la transición de especies esperadas. Mis datos muestras una segregación muy marcada en donde el sitio a se observa como un valor atípico lo cual sugiere factores locales de estrés tienen muchisimo más peso que la restricción geométrica del dominio. 
 
+## Referencias
