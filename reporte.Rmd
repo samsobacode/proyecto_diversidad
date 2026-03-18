@@ -13,7 +13,9 @@ library (tidyverse)
 library (vegan) # índices de diversidad y rarefacción
 library (iNEXT) # curvas de rarefacción/extrapolación
 library (tibble)
-
+library (BiodiversityR)
+library (RColorBrewer)
+library (ggdendro)
 ```
 
 ```{r}
@@ -38,6 +40,8 @@ promedios <- datos %>%
 
 promedios
 
+write.csv(promedios, "output/promedios.csv", row.names = FALSE)
+
 ```
 
 
@@ -50,6 +54,8 @@ matriz <- promedios %>%
   column_to_rownames("grupo")
 
 matriz
+
+write.csv(matriz, "output/matriz.csv", row.names = FALSE)
 
 ```
 
@@ -135,6 +141,8 @@ diversidad <- function (matriz) {
 
 diversidad (matriz)
 
+write.csv(diversidad, "output/diversidad.csv", row.names = FALSE)
+
 ```
 
 Calcular el índice Chao1 = S + (f1^2) / (2 * f2).
@@ -163,6 +171,8 @@ chao1 <- function(abundancias) {
 
 chao1_2 <- do.call(rbind, apply(matriz, 1, chao1, simplify = FALSE)) # apply recorre las filas (1) de la matriz, do.call permite aplicar a cada elemento la función y rbind une las filas para hacer la tabla.
 chao1_2
+
+write.csv(chao1_2, "output/chao1.csv", row.names = FALSE)
 ```
 
 
@@ -183,92 +193,55 @@ Las comunidades con mayor riquezas puede generar una disminución de la equitati
 c) **P3** Compara la riqueza observada (S) con el estimado de Chao1. ¿En qué sitio la brecha es mayor? ¿Qué implicación tiene esto para el diseño de un muestreo real?
 
 ```{r}
-#' Comparar riqueza observada vs Chao1 para múltiples sitios
-#'
-#' @param lista_sitios Lista nombrada; cada elemento es un vector de abundancias
-#' @return Data frame con S, Chao1, brecha absoluta y % de especies no detectadas
-comparar_sitios <- function(lista_sitios) {
-  resultados <- lapply(names(lista_sitios), function(nombre) {
-    res <- calcular_chao1(lista_sitios[[nombre]])
-    brecha     <- res$chao1 - res$S
-    pct_falta  <- round((brecha / res$chao1) * 100, 1)
-    
-    data.frame(
-      Sitio          = nombre,
-      S_obs          = res$S,
-      f1_singletons  = res$f1,
-      f2_doubletons  = res$f2,
-      Chao1          = res$chao1,
-      Brecha         = round(brecha, 2),
-      Pct_no_detect  = pct_falta
-    )
-  })
+
+chao1_2$sitio <- rownames(chao1_2) # Establece los nombres de las filas de objetos como dataframe
+
+
+chao1_largo <- chao1_2 %>%
+  select(sitio, S, chao1) %>% # Seleccionar Chao1 y S
+  pivot_longer( # asigna una nueva columnas con los valores de S y Chao1 en una columna, y otra columna para poner sus valores
+    cols      = c(S, chao1),
+    names_to  = "indice",
+    values_to = "valor"
+  ) %>%
+  mutate(indice = factor(indice, levels = c("S", "chao1"), # ayuda a renombrar S y Chao1 para mi grafica
+                         labels = c("Riqueza observada (S)", "Estimado Chao1")))
+
   
-  df <- do.call(rbind, resultados)
-  df[order(-df$Brecha), ]   # Ordenar de mayor a menor brecha
-}
+## Código adaptado del libro Programming Skills for Sata Science Editorial Pearson Capítulo  dplyr
+
+# Gráfica
+b <- ggplot(chao1_largo, aes(x = sitio, y = valor, fill = indice)) +
+  geom_col(position = "dodge", width = 0.6) +
+  geom_text(
+    aes(label = valor),
+    position = position_dodge(width = 0.6),
+    vjust = -0.4, size = 3.5
+  ) +
+  scale_fill_manual(values = c("Riqueza observada (S)" = "#4C9BE8",
+                               "Estimado Chao1"        = "#E8834C")) +
+  labs(
+    title = "Riqueza observada vs estimada (Chao1) por sitio",
+    x     = "Sitio",
+    y     = "Número de especies",
+    fill  = NULL
+  ) +
+  theme_minimal(base_size = 13) +
+  theme(legend.position = "top")
+
+b
 ```
 
 ```{r}
-#' Visualizar comparación S vs Chao1 por sitio
-#'
-#' @param df Data frame devuelto por comparar_sitios()
-graficar_comparacion <- function(df) {
-  sitios <- df$Sitio
-  n      <- length(sitios)
-  x      <- seq_len(n)
-  
-  par(mar = c(5, 5, 4, 2))
-  
-  # Barras de Chao1 (fondo)
-  bp <- barplot(
-    df$Chao1,
-    names.arg = sitios,
-    col       = "#A8D5BA",
-    ylim      = c(0, max(df$Chao1) * 1.2),
-    ylab      = "Número de especies",
-    xlab      = "Sitio",
-    main      = "Riqueza Observada (S) vs. Estimado Chao1",
-    border    = "white",
-    las       = 1
-  )
-  
-  # Barras de S_obs (encima)
-  barplot(
-    df$S_obs,
-    col    = "#2E86AB",
-    border = "white",
-    add    = TRUE,
-    names.arg = rep("", n)
-  )
-  
-  # Leyenda
-  legend(
-    "topright",
-    legend = c("S observada", "Chao1 estimado"),
-    fill   = c("#2E86AB", "#A8D5BA"),
-    border = "white",
-    bty    = "n"
-  )
-  
-  # Etiquetas de brecha
-  text(
-    bp,
-    df$Chao1 + max(df$Chao1) * 0.03,
-    labels = paste0("+", df$Brecha),
-    cex    = 0.85,
-    col    = "#C0392B",
-    font   = 2
-  )
-}
+ggsave("figures/svschao1.jpeg", plot = b,
+       width = 10, height = 7, dpi = 300)
 ```
 
-
-Para calcular Caho1 se usaron los totales por color en cada sitio (suma de las réplicas).La mayor brecha se da en el sitio g, con 6 especies no observadas estimadas. Esto se debe a que en g hay cuatro colores con un solo individuo (singletons) y ninguno con dos, lo que indica que es probable que existan más colores no capturados en el muestreo. La implicación en el muestreo para el sitio g, indica que el muestreo es insuficiente para registrar toda la diversidad de individuos colectados para obtener una estimación más complete de la riqueza real.
+El sitio con brecha mayor es el sitio e, diferencia de 4.5. Los sitios c, d y f no muestran brecha, lo que sugiere que el muestreo fue suficiente para capturar toda la diversidad. En el sitio e está compuesta por especies rara que aparecen una o dos veces, los singletons supera el 8% o la intensidad de muestreo es inferior a 100 individuos por especie, compromete la fiabilidad de los estimadores [@lopez2012].
 
 d) **P4** Si duplicaras el número de individuos muestreados en el sitio con menor riqueza, ¿esperarías que Chao1 cambiara significativamente? Justifica ecológica y estadísticamente.
 
-El sitio a tiene riqueza observada de 1 (solo mroado) y ningún singleton ni dobletón. Su Chao1 es 1. Si se duplicara el número de individuos muestreados (pasando de 164 a 328 individuos totales en las cuatro réplicas), es muy probable que no se detecten nuevas especies, porque la comunidad parece ser monoespecífica (todos los individuos son del mismo color). Estadísticamente, Chao1 solo aumentaría si aparecieran nuevos colores con uno o dos individuos, pero dada la homogeneidad observada, no se espera un cambio significativo. Ecológicamente, esto sugiere que el sitio es extremadamente pobre en diversidad de colores y que un mayor esfuerzo de muestreo no alteraría la estimación.
+No esperaría un cambio en Chao1, porque al duplicar estadísticamente el Chao1 no cambia, como en el caso del sitio 1, el Chao fue de 1, y los singleton y doubleton de 0. Ecológicamente la ausencia de especies puede interpretarse como la comunidad no tiene diversidad, porque las condicione ambientales favorece la dominancia de una especie.
 
 ## Curvas de rarefacción
 
@@ -276,35 +249,83 @@ Usa el paquete iNEXT para generar curvas de interpolación y extrapolación (Hil
 
 ```{r}
 
-lista_sitios <- split(t(sp_matrix), rownames(t(sp_matrix)))
-out <- iNEXT(lista_sitios, q = 0, datatype = "abundance")
-ggiNEXT(out, type = 1) +
- scale_color_brewer(palette = "Dark2") +
- labs(title = "Curvas de rarefacción e interpolación",
- x = "Número de individuos muestreados",
- y = "Riqueza de especies (q = 0)") +
- theme_classic(base_size = 12)
+sp_matrix <- datos %>%
+  select(-replica, -total) %>%
+  group_by(grupo) %>%
+  summarise(across(everything(), sum)) %>%  # sumar réplicas
+  column_to_rownames("grupo") # seleccionar las columnas y agrupar por grupo
 ```
+
+
+```{r warning=FALSE, message=FALSE}
+
+# Preparar lista para iNEXT (sitios como columnas, especies como filas)
+lista_sitios <- split(t(sp_matrix), rownames(t(sp_matrix)))
+
+# Generar curvas
+out <- iNEXT(lista_sitios, q = 0, datatype = "abundance")
+
+# Graficar
+p <- ggiNEXT(out, type = 1) +
+  scale_color_brewer(palette = "Paired") +
+  labs(title = "Curvas de rarefacción e interpolación",
+       x = "Número de individuos muestreados",
+       y = "Riqueza de especies (q = 0)") +
+  theme_classic(base_size = 12)
+p
+```
+
+```{r}
+ggsave("figures/rarefaccion.jpeg", plot = p,
+       width = 10, height = 7, dpi = 300)
+```
+
 
 ### Preguntas
 
 e) **P5.** ¿Cuál sitio alcanza la asíntota más rápidamente? ¿Qué te dice eso sobre la estructura de la comunidad?
 
-
+El sitio que alcanza la asíntota rápidamente es el sitio morado (grupo a) por tener solo una especie dominante, esto por las condiciones ambientales que no favorece la diversidad.
 
 f) **P6.** Dos sitios pueden tener la misma riqueza observada pero curvas con pendientes muy distintas. ¿Cómo interpretas esa diferencia en términos de abundancias relativas?
 
+El azul_fuerte es una pendiente que tiene pocas especies dominantes, favorece que el muestreo aparezcan las especies escasas, a comparación del rosa_fuerte o verde_transparente, necesita más número de individuos muestreados, porque la abundancia es más equitativa entre las especies.
 
+g) **P7.** ¿A qué tamaño de muestra estandarizado compararías los sitios? Justifica tu elección y calcula la riqueza rarefactada para todos los sitios a ese nivel.
 
-g) **P7.** ¿A qué tamaño d emuestra estandarizado compararías los sitios? Justifica tu elección y calcula la riqueza rarefactada para todos los sitios a ese nivel.
+El que tiene menor abundancia son las fichas moradas, pero como solo es una especie, afecta al análisis. Por tal motivo, seleccionó el que sigue,  las fichas amarillas.
+
+Para esto utilizamos sapply para aplicar una función a cada elemento de la lista,la función es la suma de los elementos del vector.
+
+```{r}
+
+sapply(lista_sitios, sum)
+```
+Eliminar el minimo y seleccionar el siguiente de la lista.
+
+```{r}
+
+n_min <- min(sapply(lista_sitios, sum))
+n_min
+```
+La función rarefy del paquete vegan calcula la riqueza esperada de especies si todos los sitios hubieran sido muestreados con el mismo número de individuos (n_min).
+
+```{r}
+
+riqueza_rarefactada <- rarefy(sp_matrix, sample = n_min)
+round(riqueza_rarefactada, 2)
+```
 
 ## Gráficas de rango-abundancia
 
 Preparación de datos: se usa "matriz" que ya se definio "promedios" para generar el ranking de abundancias.
 
-RA_data <- rankabundance (matriz)
 
-visualizamos con ggplot2 los datos en un formato largo.
+```{r warning=FALSE, message=FALSE}
+
+RA_data <- rankabundance(matriz)
+
+# Visualizamos con ggplot2 los datos en un formato largo.
 
 matriz_long <- matriz %>%
   rownames_to_column("sitio") %>%
@@ -312,31 +333,57 @@ matriz_long <- matriz %>%
   filter(abundancia > 0) %>%
   group_by(sitio) %>%
   arrange(sitio, desc(abundancia)) %>%
-  mutate(rango = row_number(),
-         abundancia_relativa = abundancia / sum(abundancia))
+  mutate(
+    rango = row_number(),
+    abundancia_relativa = abundancia / sum(abundancia)
+  )
+```
 
-Graficamos nuestra grafica.
-ggplot(matriz_long, aes(x = rango, y = abundancia_relativa, color = sitio)) +
-  geom_line(size = 1) +
+Resolver un problema al de los colores (uso de Claude-AI):
+
+```{r}
+colores_sitios <- colorRampPalette(brewer.pal(8, "Dark2"))(7)
+```
+
+
+Graficamos nuestra gráfica.
+
+```{r}
+
+rangoabu <- ggplot(matriz_long, aes(x = rango, y = abundancia_relativa, color = sitio)) +
+  geom_line(linewidth = 1) +
   geom_point(size = 2) +
-  scale_y_log10() + # Escala logarítmica común en estas gráficas
-  theme_minimal() +
-  labs(title = "Curvas de Rango-Abundancia por Sitio",
-       x = "Rango de abundancia (de mayor a menor)",
-       y = "Abundancia relativa (log10)",
-       color = "Sitio")
+  scale_y_log10() +
+  scale_color_manual(values = colores_sitios) +
+  theme_minimal(base_size = 12) +
+  labs(
+    title = "Curvas de Rango-Abundancia por Sitio",
+    x     = "Rango de abundancia (de mayor a menor)",
+    y     = "Abundancia relativa (log10)",
+    color = "Sitio"
+  )
 
-###Preguntas
+rangoabu
+
+# Exportar
+ggsave("figures/rango_abundancia.jpeg", plot = rangoabu,
+       width = 10, height = 7, dpi = 300)
+```
+
+
+### Preguntas
 a) ** P8** Identifica la forma general de cada curva (log-normal, geométrica, etc.). ¿Qué modelo
 ecológico subyace a cada forma? ¿Qué mecanismos comunitarios podrían explicarla?
 
-se identifican tres modelos principales: 
-El primero es un modelo geométrico que es el sitio a, en donde se muestra una caida predominante su mecanismo es un caso clasico de comunidades que tienen muy pocas especies con un estrés ambiental elevado en donde una sola especie puede dominar un solo nicho.
-El segundo es un modelo Log Normal en los sitios b,e,g donde la cuerva que s epresenta tiene una curva con una caida particularmente gradual en donde su mecanismo es muy similar a las comunidades estables con diversidad , en estas comunidades los recursos se pueden clasificar de formas equitativas entre varias especies. 
-El tercero es un modelo de serie logaritmica en los sitios c,d,f en donde se muestra un mecanismo muy singular de comunidades en donde unos factores dominan la estructura, dando como resultado especies abundantes y pocas especies diferentes.
+Se identifican tres modelos principales:
+
+-   El primero es un modelo geométrico que es el sitio a, en donde se muestra una caida predominante su mecanismo es un caso clasico de comunidades que tienen muy pocas especies con un estrés ambiental elevado en donde una sola especie puede dominar un solo nicho.
+-   El segundo es un modelo Log Normal en los sitios b,e,g donde la cuerva que s epresenta tiene una curva con una caida particularmente gradual en donde su mecanismo es muy similar a las comunidades estables con diversidad , en estas comunidades los recursos se pueden clasificar de formas equitativas entre varias especies. 
+-   El tercero es un modelo de serie logaritmica en los sitios c,d,f en donde se muestra un mecanismo muy singular de comunidades en donde unos factores dominan la estructura, dando como resultado especies abundantes y pocas especies diferentes.
 
 b) **P9** ¿En qué sitio la especie más dominante representa la mayor fracción de individuos?
 ¿Cómo se relaciona ese resultado con el índice de Simpson?
+
 El sitio con mayor dominancia es la especie morada donde tiene un ´promedio de abundancia mayor al resto de las demás especies en esa zona. 
 La relación que existe entre el indice de Simpson es que en el sitio a , el valor de Simpson suele ser muy muy alto casi cercano a 1. Esto como resultado de que en la curva de Whittaker tiene una pendiente muy alta.
 
@@ -347,29 +394,69 @@ podria explicarlo una perturbación ambiental severa o en su caso una eutrofizac
 
 ## Diversidad beta
 
-Creación de la matriz de distancia 
+Creación de la matriz de distancia
+
+```{r warning=FALSE, message=FALSE}
+
+# Matriz de distancia Bray-Curtis
 dist_matriz <- vegdist(matriz, method = "bray")
 
-Analisis y gráfica de (NMDS)
+# NMDS
 set.seed(123)
 nmds_bio <- metaMDS(matriz, distance = "bray", autotransform = FALSE)
-plot(nmds_bio, type = "t", main = "Ordenación NMDS - Diversidad Beta")
 
-Analisis de agrupamiento con el método de enlace promedio
+# Extraer coordenadas para ggplot
+nmds_coords <- as.data.frame(scores(nmds_bio, display = "sites"))
+nmds_coords$sitio <- rownames(nmds_coords)
+
+# Gráfica NMDS con ggplot
+p_nmds <- ggplot(nmds_coords, aes(x = NMDS1, y = NMDS2, label = sitio)) +
+  geom_point(aes(color = sitio), size = 3) +
+  geom_text(vjust = -0.8, size = 4) +
+  scale_color_manual(values = colores_sitios) +
+  theme_minimal(base_size = 12) +
+  labs(
+    title = "Ordenación NMDS - Diversidad Beta",
+    x     = "NMDS1",
+    y     = "NMDS2",
+    color = "Sitio"
+  )
+
+p_nmds
+
+ggsave("figures/nmds.jpeg", plot = p_nmds,
+       width = 10, height = 7, dpi = 300)
+
+# Dendrograma
 hc_sitios <- hclust(dist_matriz, method = "average")
-plot(hc_sitios, 
-     main = "Dendrograma de similitud entre sitios", 
-     xlab = "Sitios", 
-     sub = "Distancia: Bray-Curtis | Algoritmo: UPGMA")
 
-###Preguntas 
+# Convertir a ggplot con ggdendro
+
+p_dendro <- ggdendrogram(hc_sitios, rotate = FALSE) +
+  labs(
+    title = "Dendrograma de similitud entre sitios",
+    x     = "Sitios",
+    y     = "Distancia Bray-Curtis"
+  ) +
+  theme_minimal(base_size = 12)
+
+p_dendro
+
+ggsave("figures/dendrograma.jpeg", plot = p_dendro,
+       width = 10, height = 7, dpi = 300)
+```
+
+
+### Preguntas 
 
 a) **P11** Analiza la matriz de Bray-Curtis. ¿Qué par de sitios es más diferente? ¿Es el mismo
 par más diferente según Jaccard? Si no coinciden, ¿a qué se debe?
+
 El par de stitios más diferentes es el a, en Jaccard no se ve una diferencia alta ya que este indice solo esta considerando la presencia de las especies ya que Jaccard considera los individuos más similares de lo que sugiere la estructura de abundancias de Bray-Curtis.
 
 b) **P12** ¿Qué componentes del recambio beta (reemplazo vs. anidamiento) podrían explicar
 los patrones que observas? (Pista: investiga el paquete betapart en R.)
+
 Entre los patrones los sitios más diversos son el reemplazo solo cuando se compara el sitio a con los demás, el fénomeno principal es el anidamiento , esto como resultado de que en la comunidad del sitio a es prácticamente un subconjunto probre de la riqueza entre los sitios que son mas variados, lo cual demuestra una gran parte de pérdida selectiva de especie más allá que un cambio de identidad taxónomica.
 
 
