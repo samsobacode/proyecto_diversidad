@@ -320,10 +320,82 @@ g) **P7.** ¿A qué tamaño d emuestra estandarizado compararías los sitios? Ju
 
 ## Gráficas de rango-abundancia
 
-Majo
+Preparación de datos: se usa "matriz" que ya se definio "promedios" para generar el ranking de abundancias.
+
+RA_data <- rankabundance (matriz)
+
+visualizamos con ggplot2 los datos en un formato largo.
+
+matriz_long <- matriz %>%
+  rownames_to_column("sitio") %>%
+  pivot_longer(-sitio, names_to = "especie", values_to = "abundancia") %>%
+  filter(abundancia > 0) %>%
+  group_by(sitio) %>%
+  arrange(sitio, desc(abundancia)) %>%
+  mutate(rango = row_number(),
+         abundancia_relativa = abundancia / sum(abundancia))
+
+Graficamos nuestra grafica.
+ggplot(matriz_long, aes(x = rango, y = abundancia_relativa, color = sitio)) +
+  geom_line(size = 1) +
+  geom_point(size = 2) +
+  scale_y_log10() + # Escala logarítmica común en estas gráficas
+  theme_minimal() +
+  labs(title = "Curvas de Rango-Abundancia por Sitio",
+       x = "Rango de abundancia (de mayor a menor)",
+       y = "Abundancia relativa (log10)",
+       color = "Sitio")
+
+###Preguntas
+a) ** P8** Identifica la forma general de cada curva (log-normal, geométrica, etc.). ¿Qué modelo
+ecológico subyace a cada forma? ¿Qué mecanismos comunitarios podrían explicarla?
+
+se identifican tres modelos principales: 
+El primero es un modelo geométrico que es el sitio a, en donde se muestra una caida predominante su mecanismo es un caso clasico de comunidades que tienen muy pocas especies con un estrés ambiental elevado en donde una sola especie puede dominar un solo nicho.
+El segundo es un modelo Log Normal en los sitios b,e,g donde la cuerva que s epresenta tiene una curva con una caida particularmente gradual en donde su mecanismo es muy similar a las comunidades estables con diversidad , en estas comunidades los recursos se pueden clasificar de formas equitativas entre varias especies. 
+El tercero es un modelo de serie logaritmica en los sitios c,d,f en donde se muestra un mecanismo muy singular de comunidades en donde unos factores dominan la estructura, dando como resultado especies abundantes y pocas especies diferentes.
+
+b) **P9** ¿En qué sitio la especie más dominante representa la mayor fracción de individuos?
+¿Cómo se relaciona ese resultado con el índice de Simpson?
+El sitio con mayor dominancia es la especie morada donde tiene un ´promedio de abundancia mayor al resto de las demás especies en esa zona. 
+La relación que existe entre el indice de Simpson es que en el sitio a , el valor de Simpson suele ser muy muy alto casi cercano a 1. Esto como resultado de que en la curva de Whittaker tiene una pendiente muy alta.
+
+c) **P10** Imagina que en un monitoreo de largo plazo una curva log-normal se convierte en
+geométrica. ¿Qué perturbación ecológica podría explicarlo?
+
+podria explicarlo una perturbación ambiental severa o en su caso una eutrofización , en donde se veria la disminución de la competencia de tal modo que una sola especie oportunista se pueda multiplicar acaparando asi nicho y recursos.
 
 ## Diversidad beta
 
-Majo
+Creación de la matriz de distancia 
+dist_matriz <- vegdist(matriz, method = "bray")
 
+Analisis y gráfica de (NMDS)
+set.seed(123)
+nmds_bio <- metaMDS(matriz, distance = "bray", autotransform = FALSE)
+plot(nmds_bio, type = "t", main = "Ordenación NMDS - Diversidad Beta")
+
+Analisis de agrupamiento con el método de enlace promedio
+hc_sitios <- hclust(dist_matriz, method = "average")
+plot(hc_sitios, 
+     main = "Dendrograma de similitud entre sitios", 
+     xlab = "Sitios", 
+     sub = "Distancia: Bray-Curtis | Algoritmo: UPGMA")
+
+###Preguntas 
+
+a) **P11** Analiza la matriz de Bray-Curtis. ¿Qué par de sitios es más diferente? ¿Es el mismo
+par más diferente según Jaccard? Si no coinciden, ¿a qué se debe?
+El par de stitios más diferentes es el a, en Jaccard no se ve una diferencia alta ya que este indice solo esta considerando la presencia de las especies ya que Jaccard considera los individuos más similares de lo que sugiere la estructura de abundancias de Bray-Curtis.
+
+b) **P12** ¿Qué componentes del recambio beta (reemplazo vs. anidamiento) podrían explicar
+los patrones que observas? (Pista: investiga el paquete betapart en R.)
+Entre los patrones los sitios más diversos son el reemplazo solo cuando se compara el sitio a con los demás, el fénomeno principal es el anidamiento , esto como resultado de que en la comunidad del sitio a es prácticamente un subconjunto probre de la riqueza entre los sitios que son mas variados, lo cual demuestra una gran parte de pérdida selectiva de especie más allá que un cambio de identidad taxónomica.
+
+
+c) **P13** Si estos sitios representaran puntos a lo largo de un gradiente altitudinal, ¿qué patrón
+de beta-diversidad esperarías según la teoría del dominio medio (mid-domain effect)?
+¿Coincide con tus resultados?
+
+No, no coinciden con esté patrón ya que en el caso del sitio a s epresenta una caida de diversidad que es muy tajante y por ende una composición muy simple que rompe la transición de especies esperadas. Mis datos muestras una segregación muy marcada en donde el sitio a se observa como un valor atípico lo cual sugiere factores locales de estrés tienen muchisimo más peso que la restricción geométrica del dominio. 
 
