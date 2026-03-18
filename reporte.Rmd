@@ -23,6 +23,7 @@ datos <- read.csv ("data/sitios.csv")
 ```{r}
 glimpse (datos)
 ```
+
 ```{r}
 stopifnot (!any (is.na (datos))) # falla si hay NAs
 ```
@@ -31,6 +32,7 @@ Sacar el promedio de las réplicas de cada grupo muestrado (script de la clase d
 
 ```{r}
 promedios <- datos %>%
+  select (-total) %>%
   group_by (grupo) %>%
   summarise (across (rosa_fuerte:naranja, mean))
 
@@ -51,6 +53,118 @@ matriz
 
 ```
 
+```{r}
+#' Calcular índice de Shannon (H')
+#'
+#' @param abund Vector numérico de abundancias por especie
+#' @return Valor de H' (≥ 0); máximo = ln(S)
+shannon <- function(abund) {
+
+  # Solo especies presentes
+  abund <- abund[abund > 0]
+
+  N  <- sum(abund)          # Total de individuos
+  pi <- abund / N           # Proporción de cada especie
+
+  H  <- -sum(pi * log(pi))  # Ecuación de Shannon
+  return(round(H, 4))
+}
+```
+
+```{r}
+#' Calcular índice de Simpson (D = 1 - Σpi²)
+#'
+#' @param abund Vector numérico de abundancias por especie
+#' @return Valor de D (0 a 1); cerca de 1 = alta diversidad
+simpson <- function(abund) {
+
+  abund <- abund[abund > 0]
+
+  N  <- sum(abund)
+  pi <- abund / N
+
+  D  <- 1 - sum(pi^2)       # Ecuación de Simpson
+  return(round(D, 4))
+}
+```
+
+```{r}
+#' Calcular equitatividad de Pielou (J')
+#'
+#' @param abund Vector numérico de abundancias por especie
+#' @return J' entre 0 y 1; cerca de 1 = distribución equitativa
+pielou <- function(abund) {
+
+  abund <- abund[abund > 0]
+  S     <- length(abund)         # Riqueza observada
+
+  if (S <= 1) return(NA)         # No tiene sentido con 1 sola especie
+
+  H  <- shannon(abund)
+  J  <- H / log(S)               # H' normalizado por el máximo posible
+  return(round(J, 4))
+}
+```
+
+```{r}
+# ============================================================
+# FUNCIÓN: Tabla de diversidad alfa para múltiples sitios
+# ============================================================
+
+#' Calcular todos los índices alfa para una matriz de sitios
+#'
+#' @param matriz Data frame o matriz (filas = sitios, columnas = especies)
+#' @return Data frame con S, H', D, 1/D y J' por sitio
+tabla_diversidad <- function(matriz) {
+
+  sitios <- rownames(matriz)
+
+  resultado <- lapply(sitios, function(s) {
+    abund <- as.numeric(matriz[s, ])
+
+    data.frame(
+      sitio    = s,
+      S        = sum(abund > 0),          # Riqueza observada
+      shannon  = shannon(abund),           # H'
+      simpson  = simpson(abund),           # 1 - Σpi²
+      inv_simp = inv_simpson(abund),       # 1 / Σpi²
+      pielou   = pielou(abund)             # J'
+    )
+  })
+
+  do.call(rbind, resultado)
+}
+
+```
+
+```{r}
+#' Calcular el estimador de riqueza Chao1
+#'
+#' @param abundancias Vector numérico con abundancias por especie en un sitio
+#' @return Lista con S, f1, f2 y Chao1
+#' @details Chao1 = S + (f1^2) / (2 * f2)
+#'          donde f1 = singletons, f2 = doubletons
+calcular_chao1 <- function(abundancias) {
+  # Filtrar especies presentes (abundancia > 0)
+  presentes <- abundancias[abundancias > 0]
+  
+  S   <- length(presentes)                   # Riqueza observada
+  f1  <- sum(presentes == 1)                 # Singletons
+  f2  <- sum(presentes == 2)                 # Doubletons
+  
+  # Si f2 = 0, usar corrección: Chao1 = S + f1*(f1-1)/2
+  chao1 <- if (f2 > 0) {
+    S + (f1^2) / (2 * f2)
+  } else if (f1 > 0) {
+    S + f1 * (f1 - 1) / 2
+  } else {
+    S  # Sin raras → estimado = observado
+  }
+  
+  list(S = S, f1 = f1, f2 = f2, chao1 = round(chao1, 2))
+}
+```
+
 
 ```{r}
 alfa <- data.frame(
@@ -67,18 +181,18 @@ alfa
 
 
 ```{r}
-shannon.data <- promedios %>%
-  column_to_rownames ("grupo") %>%
-  diversity ("shannon")
-
-shannon.data
+# Chao1 requiere conteos crudos (no proporciones)
+alfa$chao1 <- estimateR (sp_matrix) ["S.chao1",]
 ```
+
 
 ### Preguntas
 
 a) **P1.** Compara los valores de Shannon y Simpson entre todos los sitios. ¿Por qué puede dar órdenes de ranking distintos? ¿Qué información adicional aporta cada uno?
 
+El índice de Shanon es sensible a la riqueza de especies y a la equitatividad, el índice de Simpson domina las especies más abundantes e indica la probabilidad de que dos individuos al azar pertenezcan a especies distintas. Por ejemplo, los rankings distintos del mismo conjunto de comunidades ocurrió en aguas lóticas versus lénticas holandesas, las especies raras afectaron el valor de Shannon pero no a Simpson, y las especies dominantes influyeron al valor de Simpson [@devries2023complementarity].
 
+En mis datos, el valor de Shannon para los sitios C y G, fueron 2.044 y 2.205, respectivamente. El valor de Simpson subió poco, indica que la diversidad proviene de la riqueza, pero si ambos subieran, la diversidad corresponde a la riqueza y equitatividad.
 
 b) **P2** ¿Qué sitio presenta la mayor equitatividad según Pielou? ¿Podría tener mayor equitatividad pero menor riqueza que otro sitio? Explica con un ejemplo numérico concreto.
 
@@ -88,13 +202,121 @@ Las comunidades con mayor riquezas puede generar una disminución de la equitati
 
 c) **P3** Compara la riqueza observada (S) con el estimado de Chao1. ¿En qué sitio la brecha es mayor? ¿Qué implicación tiene esto para el diseño de un muestreo real?
 
+```{r}
+#' Comparar riqueza observada vs Chao1 para múltiples sitios
+#'
+#' @param lista_sitios Lista nombrada; cada elemento es un vector de abundancias
+#' @return Data frame con S, Chao1, brecha absoluta y % de especies no detectadas
+comparar_sitios <- function(lista_sitios) {
+  resultados <- lapply(names(lista_sitios), function(nombre) {
+    res <- calcular_chao1(lista_sitios[[nombre]])
+    brecha     <- res$chao1 - res$S
+    pct_falta  <- round((brecha / res$chao1) * 100, 1)
+    
+    data.frame(
+      Sitio          = nombre,
+      S_obs          = res$S,
+      f1_singletons  = res$f1,
+      f2_doubletons  = res$f2,
+      Chao1          = res$chao1,
+      Brecha         = round(brecha, 2),
+      Pct_no_detect  = pct_falta
+    )
+  })
+  
+  df <- do.call(rbind, resultados)
+  df[order(-df$Brecha), ]   # Ordenar de mayor a menor brecha
+}
+```
 
+```{r}
+#' Visualizar comparación S vs Chao1 por sitio
+#'
+#' @param df Data frame devuelto por comparar_sitios()
+graficar_comparacion <- function(df) {
+  sitios <- df$Sitio
+  n      <- length(sitios)
+  x      <- seq_len(n)
+  
+  par(mar = c(5, 5, 4, 2))
+  
+  # Barras de Chao1 (fondo)
+  bp <- barplot(
+    df$Chao1,
+    names.arg = sitios,
+    col       = "#A8D5BA",
+    ylim      = c(0, max(df$Chao1) * 1.2),
+    ylab      = "Número de especies",
+    xlab      = "Sitio",
+    main      = "Riqueza Observada (S) vs. Estimado Chao1",
+    border    = "white",
+    las       = 1
+  )
+  
+  # Barras de S_obs (encima)
+  barplot(
+    df$S_obs,
+    col    = "#2E86AB",
+    border = "white",
+    add    = TRUE,
+    names.arg = rep("", n)
+  )
+  
+  # Leyenda
+  legend(
+    "topright",
+    legend = c("S observada", "Chao1 estimado"),
+    fill   = c("#2E86AB", "#A8D5BA"),
+    border = "white",
+    bty    = "n"
+  )
+  
+  # Etiquetas de brecha
+  text(
+    bp,
+    df$Chao1 + max(df$Chao1) * 0.03,
+    labels = paste0("+", df$Brecha),
+    cex    = 0.85,
+    col    = "#C0392B",
+    font   = 2
+  )
+}
+```
+
+
+Para calcular Caho1 se usaron los totales por color en cada sitio (suma de las réplicas).La mayor brecha se da en el sitio g, con 6 especies no observadas estimadas. Esto se debe a que en g hay cuatro colores con un solo individuo (singletons) y ninguno con dos, lo que indica que es probable que existan más colores no capturados en el muestreo. La implicación en el muestreo para el sitio g, indica que el muestreo es insuficiente para registrar toda la diversidad de individuos colectados para obtener una estimación más complete de la riqueza real.
 
 d) **P4** Si duplicaras el número de individuos muestreados en el sitio con menor riqueza, ¿esperarías que Chao1 cambiara significativamente? Justifica ecológica y estadísticamente.
 
+El sitio a tiene riqueza observada de 1 (solo mroado) y ningún singleton ni dobletón. Su Chao1 es 1. Si se duplicara el número de individuos muestreados (pasando de 164 a 328 individuos totales en las cuatro réplicas), es muy probable que no se detecten nuevas especies, porque la comunidad parece ser monoespecífica (todos los individuos son del mismo color). Estadísticamente, Chao1 solo aumentaría si aparecieran nuevos colores con uno o dos individuos, pero dada la homogeneidad observada, no se espera un cambio significativo. Ecológicamente, esto sugiere que el sitio es extremadamente pobre en diversidad de colores y que un mayor esfuerzo de muestreo no alteraría la estimación.
+
 ## Curvas de rarefacción
 
-Samuel
+Usa el paquete iNEXT para generar curvas de interpolación y extrapolación (Hill numbers, q = 0):
+
+```{r}
+
+lista_sitios <- split(t(sp_matrix), rownames(t(sp_matrix)))
+out <- iNEXT(lista_sitios, q = 0, datatype = "abundance")
+ggiNEXT(out, type = 1) +
+ scale_color_brewer(palette = "Dark2") +
+ labs(title = "Curvas de rarefacción e interpolación",
+ x = "Número de individuos muestreados",
+ y = "Riqueza de especies (q = 0)") +
+ theme_classic(base_size = 12)
+```
+
+### Preguntas
+
+e) **P5.** ¿Cuál sitio alcanza la asíntota más rápidamente? ¿Qué te dice eso sobre la estructura de la comunidad?
+
+
+
+f) **P6.** Dos sitios pueden tener la misma riqueza observada pero curvas con pendientes muy distintas. ¿Cómo interpretas esa diferencia en términos de abundancias relativas?
+
+
+
+g) **P7.** ¿A qué tamaño d emuestra estandarizado compararías los sitios? Justifica tu elección y calcula la riqueza rarefactada para todos los sitios a ese nivel.
 
 ## Gráficas de rango-abundancia
 
